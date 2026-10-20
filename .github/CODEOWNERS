@@ -1,0 +1,4 @@
+# Profiles are the platform's guardrails: prune, finalizers, the database's
+# protections and what a team may override. Teams may propose changes; the
+# platform reviews them. Components and scaffolds take team PRs too.
+/profiles/    @mhonnczedz1
