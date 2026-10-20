@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  # Replaces the base's single-step strategy with a real canary.
+  #
+  # setWeight is a proportion of pods, not a traffic rule. With replicas: 2,
+  # 50 means one canary pod beside one stable pod, and the existing ClusterIP
+  # splits requests across them by endpoint count.
+  #
+  # `pause: {}` with no duration waits INDEFINITELY. That is the manual gate:
+  # no timer is racing your judgment.
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+    patch: |-
+      - op: replace
+        path: /spec/strategy/canary/steps
+        value:
+          - setWeight: 50
+          - pause: {}
+          - setWeight: 100

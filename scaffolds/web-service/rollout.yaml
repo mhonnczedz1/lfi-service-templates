@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: __NAME__
+  labels:
+    app: __NAME__
+spec:
+  # The prod default. The replicas-1 component patches this down to 1.
+  replicas: 2
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app: __NAME__
+  strategy:
+    canary:
+      # One step, straight to 100%. The canary-manual-gate component replaces
+      # these steps with the 50 percent pause.
+      steps:
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: __NAME__
+    spec:
+      containers:
+        - name: __NAME__
+          # Bare name, rewritten by the environment's images: block.
+          image: __NAME__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: __PORT__
+          livenessProbe:
+            httpGet:
+              path: __HEALTH__
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: __HEALTH__
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

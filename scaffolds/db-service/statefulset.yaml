@@ -1,0 +1,74 @@
+# A Postgres StatefulSet. The probes and the credentials Secret are
+# Postgres-specific; for another database change the image, the port, the
+# probes and the Secret reference together.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: __NAME__
+  labels:
+    app: __NAME__
+spec:
+  serviceName: __NAME__
+  # One replica. Raising this number gives two independent databases, not a
+  # cluster. Real HA needs an operator.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: __NAME__
+  template:
+    metadata:
+      labels:
+        app: __NAME__
+    spec:
+      securityContext:
+        # The postgres image runs as uid/gid 999. fsGroup makes the mounted
+        # volume group-writable by that user.
+        fsGroup: 999
+      containers:
+        - name: db
+          image: postgres:16-alpine
+          ports:
+            - name: db
+              containerPort: __PORT__
+          envFrom:
+            # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, created by
+            # Terraform in each environment's namespace.
+            - secretRef:
+                name: postgres-credentials
+          env:
+            # A subdirectory, because Postgres refuses to initialise into a
+            # mount root that already holds anything (lost+found).
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1']
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1']
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: __STORAGE__

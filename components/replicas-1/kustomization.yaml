@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  # DO NOT use kustomize's `replicas:` field. Its built-in transformer only
+  # knows Deployment, ReplicaSet, StatefulSet and ReplicationController. A
+  # Rollout is a custom resource, so `replicas:` matches nothing and reports
+  # nothing: you get the base's replica count and no sign anything is wrong.
+  # A JSON6902 patch names the group and kind, so a mismatch is an error.
+  #
+  # No `name:` in the target, so this applies to every Rollout in the service.
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
